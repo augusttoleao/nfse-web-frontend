@@ -1,13 +1,32 @@
 import { useState, useEffect } from 'react';
 
-interface Empresa {
+export interface Empresa {
   id: number;
+  idEmpresa: number;
   cnpj: string;
   razaoSocial: string;
   nomeFantasia: string;
-  inscricaoMunicipal: string;
-  ativo: boolean;
-  dataAtualizacao: string;
+  ativo: string | null;
+  bairro: string | null;
+  endereco: string | null;
+  enderecoNumero: string | null;
+  enderecoComplemento: string | null;
+  cep: string | null;
+  cidade: string | null;
+  uf: string | null;
+  inscricaoMunicipal: string | null;
+  inscricaoEstadual: string | null;
+  telefone: string | null;
+  telefoneDdd: string | null;
+  email: string | null;
+  cnae: string | null;
+  tipoInscricao: string | null;
+  dataInclusao: string | null;
+  dataAlteracao: string | null;
+  codigoIbge: number | null;
+  logradouro: string | null;
+  tipoLogradouro: string | null;
+  nfseTokenEmissao: string | null;
 }
 
 interface UseEmpresasReturn {
@@ -58,14 +77,12 @@ export function useEmpresas(): UseEmpresasReturn {
               if (empresaExiste) {
                 setEmpresaSelecionada(empresaExiste);
               } else {
-                // Se não existe, selecionar a primeira
                 setEmpresaSelecionada(data.data[0] || null);
               }
-            } catch (e) {
+            } catch {
               setEmpresaSelecionada(data.data[0] || null);
             }
           } else {
-            // Se nenhuma foi salva, selecionar a primeira
             setEmpresaSelecionada(data.data[0] || null);
           }
         }
@@ -84,7 +101,6 @@ export function useEmpresas(): UseEmpresasReturn {
   // Função para selecionar empresa
   const selecionarEmpresa = (empresa: Empresa) => {
     setEmpresaSelecionada(empresa);
-    // Persistir no localStorage
     localStorage.setItem('empresaSelecionada', JSON.stringify(empresa));
   };
 
