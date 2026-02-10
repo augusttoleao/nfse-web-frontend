@@ -8,6 +8,7 @@ import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import NotasEmitidas from "./pages/NotasEmitidas";
 import NotasRecebidas from "./pages/NotasRecebidas";
+import Certificados from "./pages/Certificados";
 import Configuracoes from "./pages/Configuracoes";
 
 function Router() {
@@ -17,6 +18,7 @@ function Router() {
         <Route path="/" component={Dashboard} />
         <Route path="/emitidas" component={NotasEmitidas} />
         <Route path="/recebidas" component={NotasRecebidas} />
+        <Route path="/certificados" component={Certificados} />
         <Route path="/config" component={Configuracoes} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />

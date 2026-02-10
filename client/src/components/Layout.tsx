@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, X, FileText, BarChart3, Settings } from 'lucide-react';
+import { Menu, X, FileText, BarChart3, Settings, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EmpresaSelector } from '@/components/EmpresaSelector';
 
@@ -14,6 +14,7 @@ export default function Layout({ children }: LayoutProps) {
     { icon: BarChart3, label: 'Dashboard', href: '/', id: 'dashboard' },
     { icon: FileText, label: 'Notas Emitidas', href: '/emitidas', id: 'emitidas' },
     { icon: FileText, label: 'Notas Recebidas', href: '/recebidas', id: 'recebidas' },
+    { icon: Lock, label: 'Certificados', href: '/certificados', id: 'certificados' },
     { icon: Settings, label: 'Configurações', href: '/config', id: 'config' },
   ];
 
