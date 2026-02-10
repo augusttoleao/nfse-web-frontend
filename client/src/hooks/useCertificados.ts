@@ -22,7 +22,7 @@ interface UseCertificadosReturn {
   deletarCertificado: (certificadoId: number) => Promise<void>;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://nfse.easytecsis.com.br/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 /**
  * Hook para gerenciar certificados digitais

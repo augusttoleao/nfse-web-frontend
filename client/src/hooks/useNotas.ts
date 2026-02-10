@@ -33,7 +33,7 @@ interface UseNotasParams {
   itensPorPagina?: number;
 }
 
-const API_BASE_URL = 'https://nfse.easytecsis.com.br';
+const API_BASE_URL = '';
 
 export function useNotas({
   tipo,
