@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Menu, X, FileText, BarChart3, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { EmpresaSelector } from '@/components/EmpresaSelector';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -43,6 +44,13 @@ export default function Layout({ children }: LayoutProps) {
             {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </Button>
         </div>
+
+        {/* Empresa Selector */}
+        {sidebarOpen && (
+          <div className="px-2 py-4 border-b border-sidebar-border">
+            <EmpresaSelector />
+          </div>
+        )}
 
         {/* Menu Items */}
         <nav className="flex-1 px-2 py-4 space-y-2">
