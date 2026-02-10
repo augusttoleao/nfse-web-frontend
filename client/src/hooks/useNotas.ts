@@ -1,15 +1,31 @@
 import { useState, useEffect, useMemo } from 'react';
 
+export interface Pessoa {
+  cnpj: string;
+  cpf?: string;
+  razaoSocial: string;
+  nomeFantasia?: string;
+  inscricaoMunicipal?: string;
+  email?: string;
+  telefone?: string;
+}
+
 export interface Nota {
   numero: string;
   chaveAcesso: string;
   dataEmissao: string;
-  dataVencimento?: string;
+  competencia?: string;
   valor: number;
+  valorDeducoes?: number;
+  valorIss?: number;
+  aliquota?: number;
   descricao: string;
+  codigoServico?: string;
   status: string;
-  cnpj?: string;
-  inscricaoMunicipal?: string;
+  motivo?: string;
+  prestador?: Pessoa;
+  tomador?: Pessoa;
+  xmlOriginal?: string;
 }
 
 export interface NotasResponse {
@@ -19,6 +35,7 @@ export interface NotasResponse {
     total: number;
     pagina: number;
     itensPorPagina: number;
+    totalPaginas?: number;
   };
   message?: string;
   error?: string;
@@ -34,7 +51,7 @@ interface UseNotasParams {
 }
 
 /**
- * Hook para consultar notas fiscais
+ * Hook para consultar notas fiscais via ADN (Ambiente de Dados Nacional)
  * Envia empresaId para o backend buscar CNPJ/IM e certificado do banco
  * Só faz a requisição quando há datas de filtro e empresa selecionada
  */
@@ -48,6 +65,7 @@ export function useNotas({
 }: UseNotasParams) {
   const [notas, setNotas] = useState<Nota[]>([]);
   const [total, setTotal] = useState(0);
+  const [totalPaginas, setTotalPaginas] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,6 +79,7 @@ export function useNotas({
     if (!stableParams.dataInicio || !stableParams.dataFim || !stableParams.empresaId) {
       setNotas([]);
       setTotal(0);
+      setTotalPaginas(0);
       setLoading(false);
       setError(null);
       return;
@@ -91,9 +110,11 @@ export function useNotas({
         if (data.success && data.data) {
           setNotas(data.data.notas || []);
           setTotal(data.data.total || 0);
+          setTotalPaginas(data.data.totalPaginas || 0);
         } else {
           setNotas([]);
           setTotal(0);
+          setTotalPaginas(0);
           if (data.message) {
             setError(data.message);
           }
@@ -103,6 +124,7 @@ export function useNotas({
         setError(message);
         setNotas([]);
         setTotal(0);
+        setTotalPaginas(0);
         console.error('Erro ao buscar notas:', err);
       } finally {
         setLoading(false);
@@ -112,12 +134,11 @@ export function useNotas({
     fetchNotas();
   }, [stableParams]);
 
-  return { notas, total, loading, error };
+  return { notas, total, totalPaginas, loading, error };
 }
 
 /**
  * Buscar resumo de notas para o Dashboard
- * Retorna zeros até que a integração com SEFIN esteja ativa
  */
 export async function fetchNotasResume() {
   return {

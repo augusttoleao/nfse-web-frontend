@@ -21,7 +21,7 @@ async function baixarDanfse(chaveAcesso: string, empresaId?: number) {
     }
 
     const contentType = response.headers.get('content-type') || '';
-    
+
     if (contentType.includes('application/pdf')) {
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -96,7 +96,7 @@ export default function NotasRecebidas() {
   const [pagina, setPagina] = useState(1);
   const [baixandoDanfse, setBaixandoDanfse] = useState<string | null>(null);
 
-  const { notas, total, loading, error } = useNotas({
+  const { notas, total, totalPaginas, loading, error } = useNotas({
     tipo: 'recebidas',
     dataInicio: dataInicio || undefined,
     dataFim: dataFim || undefined,
@@ -112,11 +112,12 @@ export default function NotasRecebidas() {
       (nota.numero && nota.numero.toLowerCase().includes(busca)) ||
       (nota.chaveAcesso && nota.chaveAcesso.toLowerCase().includes(busca)) ||
       (nota.descricao && nota.descricao.toLowerCase().includes(busca)) ||
-      (nota.cnpj && nota.cnpj.includes(filtroBusca))
+      (nota.prestador?.cnpj && nota.prestador.cnpj.includes(filtroBusca)) ||
+      (nota.prestador?.razaoSocial && nota.prestador.razaoSocial.toLowerCase().includes(busca))
     );
   });
 
-  const totalPaginas = Math.max(1, Math.ceil(total / 10));
+  const paginasTotal = totalPaginas || Math.max(1, Math.ceil(total / 10));
 
   const handleBaixarDanfse = async (chaveAcesso: string) => {
     setBaixandoDanfse(chaveAcesso);
@@ -139,9 +140,9 @@ export default function NotasRecebidas() {
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Notas Recebidas</h1>
+        <h1 className="text-2xl font-bold text-foreground">Notas Recebidas (Tomadas)</h1>
         <p className="text-sm text-muted-foreground">
-          Consulte as notas fiscais recebidas por {empresaSelecionada.nomeFantasia || empresaSelecionada.razaoSocial}
+          Notas fiscais recebidas por {empresaSelecionada.nomeFantasia || empresaSelecionada.razaoSocial} via ADN - Ambiente de Dados Nacional
         </p>
       </div>
 
@@ -156,7 +157,7 @@ export default function NotasRecebidas() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar..."
+              placeholder="Buscar por nome, CNPJ..."
               value={filtroBusca}
               onChange={(e) => setFiltroBusca(e.target.value)}
               className="pl-10 h-9 text-sm"
@@ -206,11 +207,11 @@ export default function NotasRecebidas() {
             <thead className="bg-secondary border-b border-border">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Número</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Emitente (CNPJ)</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Prestador</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">CNPJ Prestador</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Data Emissão</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Descrição</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-foreground">Valor</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-foreground">Status</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-foreground">Ações</th>
               </tr>
             </thead>
@@ -219,7 +220,7 @@ export default function NotasRecebidas() {
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">
                     <Loader2 className="w-5 h-5 mx-auto mb-2 animate-spin" />
-                    Consultando notas na API SEFIN Nacional...
+                    Consultando notas no ADN - Ambiente de Dados Nacional...
                   </td>
                 </tr>
               ) : !dataInicio || !dataFim ? (
@@ -239,20 +240,20 @@ export default function NotasRecebidas() {
                 notasFiltradas.map((nota, idx) => (
                   <tr key={nota.chaveAcesso || idx} className="border-b border-border hover:bg-secondary/50 transition-colors">
                     <td className="px-4 py-3 text-sm font-medium text-foreground">{nota.numero}</td>
-                    <td className="px-4 py-3 text-sm text-foreground">
-                      {nota.cnpj ? formatCnpj(nota.cnpj) : '-'}
+                    <td className="px-4 py-3 text-sm text-foreground truncate max-w-[200px]">
+                      {nota.prestador?.razaoSocial || '-'}
                     </td>
                     <td className="px-4 py-3 text-sm text-foreground">
-                      {new Date(nota.dataEmissao).toLocaleDateString('pt-BR')}
+                      {nota.prestador?.cnpj ? formatCnpj(nota.prestador.cnpj) : '-'}
                     </td>
-                    <td className="px-4 py-3 text-sm text-foreground truncate max-w-xs">{nota.descricao}</td>
+                    <td className="px-4 py-3 text-sm text-foreground">
+                      {nota.dataEmissao ? new Date(nota.dataEmissao).toLocaleDateString('pt-BR') : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-foreground truncate max-w-[250px]" title={nota.descricao}>
+                      {nota.descricao || '-'}
+                    </td>
                     <td className="px-4 py-3 text-sm font-semibold text-foreground text-right">
                       R$ {(nota.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        {nota.status || 'Autorizado'}
-                      </span>
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
@@ -296,9 +297,9 @@ export default function NotasRecebidas() {
                 Anterior
               </Button>
               <span className="px-3 py-1.5 text-xs text-foreground">
-                {pagina} / {totalPaginas}
+                {pagina} / {paginasTotal}
               </span>
-              <Button variant="outline" size="sm" disabled={pagina >= totalPaginas} onClick={() => setPagina(pagina + 1)}>
+              <Button variant="outline" size="sm" disabled={pagina >= paginasTotal} onClick={() => setPagina(pagina + 1)}>
                 Próxima
               </Button>
             </div>

@@ -21,7 +21,7 @@ async function baixarDanfse(chaveAcesso: string, empresaId?: number) {
     }
 
     const contentType = response.headers.get('content-type') || '';
-    
+
     if (contentType.includes('application/pdf')) {
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -36,7 +36,6 @@ async function baixarDanfse(chaveAcesso: string, empresaId?: number) {
     } else {
       const data = await response.json();
       if (data.success && data.data?.pdf) {
-        // Base64 PDF
         const byteCharacters = atob(data.data.pdf);
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) {
@@ -63,7 +62,6 @@ async function baixarDanfse(chaveAcesso: string, empresaId?: number) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Erro ao baixar DANFSe';
     toast.error(msg);
-    console.error('Erro ao baixar DANFSe:', err);
   }
 }
 
@@ -74,9 +72,7 @@ async function visualizarNota(chaveAcesso: string, empresaId?: number) {
   try {
     const params = empresaId ? `?empresaId=${empresaId}` : '';
     const response = await fetch(`/api/notas/${chaveAcesso}${params}`);
-    if (!response.ok) {
-      throw new Error(`Erro ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`Erro ${response.status}`);
     const data = await response.json();
     if (data.success) {
       const detalhes = JSON.stringify(data.data, null, 2);
@@ -87,7 +83,7 @@ async function visualizarNota(chaveAcesso: string, empresaId?: number) {
     } else {
       toast.error(data.message || 'Erro ao consultar nota');
     }
-  } catch (err) {
+  } catch {
     toast.error('Erro ao consultar detalhes da nota');
   }
 }
@@ -100,7 +96,7 @@ export default function NotasEmitidas() {
   const [pagina, setPagina] = useState(1);
   const [baixandoDanfse, setBaixandoDanfse] = useState<string | null>(null);
 
-  const { notas, total, loading, error } = useNotas({
+  const { notas, total, totalPaginas, loading, error } = useNotas({
     tipo: 'emitidas',
     dataInicio: dataInicio || undefined,
     dataFim: dataFim || undefined,
@@ -115,11 +111,13 @@ export default function NotasEmitidas() {
     return (
       (nota.numero && nota.numero.toLowerCase().includes(busca)) ||
       (nota.chaveAcesso && nota.chaveAcesso.toLowerCase().includes(busca)) ||
-      (nota.descricao && nota.descricao.toLowerCase().includes(busca))
+      (nota.descricao && nota.descricao.toLowerCase().includes(busca)) ||
+      (nota.tomador?.cnpj && nota.tomador.cnpj.includes(filtroBusca)) ||
+      (nota.tomador?.razaoSocial && nota.tomador.razaoSocial.toLowerCase().includes(busca))
     );
   });
 
-  const totalPaginas = Math.max(1, Math.ceil(total / 10));
+  const paginasTotal = totalPaginas || Math.max(1, Math.ceil(total / 10));
 
   const handleBaixarDanfse = async (chaveAcesso: string) => {
     setBaixandoDanfse(chaveAcesso);
@@ -144,7 +142,7 @@ export default function NotasEmitidas() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Notas Emitidas</h1>
         <p className="text-sm text-muted-foreground">
-          Consulte as notas fiscais emitidas por {empresaSelecionada.nomeFantasia || empresaSelecionada.razaoSocial}
+          Notas fiscais emitidas por {empresaSelecionada.nomeFantasia || empresaSelecionada.razaoSocial} via ADN - Ambiente de Dados Nacional
         </p>
       </div>
 
@@ -159,7 +157,7 @@ export default function NotasEmitidas() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar..."
+              placeholder="Buscar por nome, CNPJ..."
               value={filtroBusca}
               onChange={(e) => setFiltroBusca(e.target.value)}
               className="pl-10 h-9 text-sm"
@@ -209,31 +207,32 @@ export default function NotasEmitidas() {
             <thead className="bg-secondary border-b border-border">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Número</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Tomador</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">CNPJ Tomador</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Data Emissão</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Descrição</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-foreground">Valor</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-foreground">Status</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-foreground">Ações</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">
                     <Loader2 className="w-5 h-5 mx-auto mb-2 animate-spin" />
-                    Consultando notas na API SEFIN Nacional...
+                    Consultando notas no ADN - Ambiente de Dados Nacional...
                   </td>
                 </tr>
               ) : !dataInicio || !dataFim ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">
                     <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
                     Informe o período para consultar
                   </td>
                 </tr>
               ) : notasFiltradas.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">
                     Nenhuma nota encontrada no período
                   </td>
                 </tr>
@@ -241,17 +240,20 @@ export default function NotasEmitidas() {
                 notasFiltradas.map((nota, idx) => (
                   <tr key={nota.chaveAcesso || idx} className="border-b border-border hover:bg-secondary/50 transition-colors">
                     <td className="px-4 py-3 text-sm font-medium text-foreground">{nota.numero}</td>
-                    <td className="px-4 py-3 text-sm text-foreground">
-                      {new Date(nota.dataEmissao).toLocaleDateString('pt-BR')}
+                    <td className="px-4 py-3 text-sm text-foreground truncate max-w-[200px]">
+                      {nota.tomador?.razaoSocial || '-'}
                     </td>
-                    <td className="px-4 py-3 text-sm text-foreground truncate max-w-xs">{nota.descricao}</td>
+                    <td className="px-4 py-3 text-sm text-foreground">
+                      {nota.tomador?.cnpj ? formatCnpj(nota.tomador.cnpj) : (nota.tomador?.cpf || '-')}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-foreground">
+                      {nota.dataEmissao ? new Date(nota.dataEmissao).toLocaleDateString('pt-BR') : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-foreground truncate max-w-[250px]" title={nota.descricao}>
+                      {nota.descricao || '-'}
+                    </td>
                     <td className="px-4 py-3 text-sm font-semibold text-foreground text-right">
                       R$ {(nota.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        {nota.status || 'Autorizado'}
-                      </span>
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
@@ -295,9 +297,9 @@ export default function NotasEmitidas() {
                 Anterior
               </Button>
               <span className="px-3 py-1.5 text-xs text-foreground">
-                {pagina} / {totalPaginas}
+                {pagina} / {paginasTotal}
               </span>
-              <Button variant="outline" size="sm" disabled={pagina >= totalPaginas} onClick={() => setPagina(pagina + 1)}>
+              <Button variant="outline" size="sm" disabled={pagina >= paginasTotal} onClick={() => setPagina(pagina + 1)}>
                 Próxima
               </Button>
             </div>
@@ -306,4 +308,9 @@ export default function NotasEmitidas() {
       </Card>
     </div>
   );
+}
+
+function formatCnpj(cnpj: string): string {
+  if (!cnpj || cnpj.length !== 14) return cnpj || '-';
+  return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
 }
