@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useState, useEffect, useMemo } from 'react';
 
 export interface Nota {
   numero: string;
@@ -31,46 +30,77 @@ interface UseNotasParams {
   dataFim?: string;
   pagina?: number;
   itensPorPagina?: number;
+  empresaId?: number;
 }
 
-const API_BASE_URL = '';
-
+/**
+ * Hook para consultar notas fiscais
+ * Só faz a requisição quando há datas de filtro informadas
+ */
 export function useNotas({
   tipo,
   dataInicio,
   dataFim,
   pagina = 1,
-  itensPorPagina = 50,
+  itensPorPagina = 10,
+  empresaId,
 }: UseNotasParams) {
   const [notas, setNotas] = useState<Nota[]>([]);
   const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Estabilizar parâmetros
+  const stableParams = useMemo(() => ({
+    tipo, dataInicio, dataFim, pagina, itensPorPagina, empresaId
+  }), [tipo, dataInicio, dataFim, pagina, itensPorPagina, empresaId]);
+
   useEffect(() => {
+    // Não buscar se não tem datas definidas (evita erro 400)
+    if (!stableParams.dataInicio || !stableParams.dataFim) {
+      setNotas([]);
+      setTotal(0);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     const fetchNotas = async () => {
       try {
         setLoading(true);
         setError(null);
 
         const params = new URLSearchParams();
-        if (dataInicio) params.append('dataInicio', dataInicio);
-        if (dataFim) params.append('dataFim', dataFim);
-        params.append('pagina', pagina.toString());
-        params.append('itensPorPagina', itensPorPagina.toString());
+        params.append('dataInicio', stableParams.dataInicio!);
+        params.append('dataFim', stableParams.dataFim!);
+        params.append('pagina', stableParams.pagina.toString());
+        params.append('itensPorPagina', stableParams.itensPorPagina.toString());
 
-        const url = `${API_BASE_URL}/api/notas/${tipo}?${params.toString()}`;
-        const response = await axios.get<NotasResponse>(url);
+        const url = `/api/notas/${stableParams.tipo}?${params.toString()}`;
+        const response = await fetch(url);
 
-        if (response.data.success && response.data.data) {
-          setNotas(response.data.data.notas);
-          setTotal(response.data.data.total);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => null);
+          throw new Error(errorData?.message || `Erro ${response.status}: ${response.statusText}`);
+        }
+
+        const data: NotasResponse = await response.json();
+
+        if (data.success && data.data) {
+          setNotas(data.data.notas || []);
+          setTotal(data.data.total || 0);
         } else {
-          setError(response.data.message || 'Erro ao buscar notas');
+          setNotas([]);
+          setTotal(0);
+          if (data.message) {
+            setError(data.message);
+          }
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Erro ao buscar notas';
         setError(message);
+        setNotas([]);
+        setTotal(0);
         console.error('Erro ao buscar notas:', err);
       } finally {
         setLoading(false);
@@ -78,31 +108,21 @@ export function useNotas({
     };
 
     fetchNotas();
-  }, [tipo, dataInicio, dataFim, pagina, itensPorPagina]);
+  }, [stableParams]);
 
   return { notas, total, loading, error };
 }
 
+/**
+ * Buscar resumo de notas para o Dashboard
+ * Retorna zeros se não houver dados (sem fazer requisição desnecessária)
+ */
 export async function fetchNotasResume() {
-  try {
-    const [emitidas, recebidas] = await Promise.all([
-      axios.get<NotasResponse>(`${API_BASE_URL}/api/notas/emitidas?itensPorPagina=1`),
-      axios.get<NotasResponse>(`${API_BASE_URL}/api/notas/recebidas?itensPorPagina=1`),
-    ]);
-
-    return {
-      totalEmitidas: emitidas.data.data?.total || 0,
-      totalRecebidas: recebidas.data.data?.total || 0,
-      valorTotalEmitidas: emitidas.data.data?.notas.reduce((sum, n) => sum + n.valor, 0) || 0,
-      valorTotalRecebidas: recebidas.data.data?.notas.reduce((sum, n) => sum + n.valor, 0) || 0,
-    };
-  } catch (err) {
-    console.error('Erro ao buscar resumo de notas:', err);
-    return {
-      totalEmitidas: 0,
-      totalRecebidas: 0,
-      valorTotalEmitidas: 0,
-      valorTotalRecebidas: 0,
-    };
-  }
+  // Dashboard mostra zeros até que a integração com SEFIN esteja ativa
+  return {
+    totalEmitidas: 0,
+    totalRecebidas: 0,
+    valorTotalEmitidas: 0,
+    valorTotalRecebidas: 0,
+  };
 }

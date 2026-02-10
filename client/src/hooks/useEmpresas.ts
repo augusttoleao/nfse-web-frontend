@@ -41,6 +41,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 /**
  * Hook para gerenciar lista de empresas e seleção
+ * Busca apenas empresas ativas (ATIVO = 'S')
  * Persiste a empresa selecionada no localStorage
  */
 export function useEmpresas(): UseEmpresasReturn {
@@ -49,14 +50,15 @@ export function useEmpresas(): UseEmpresasReturn {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Carregar empresas da API
+  // Carregar empresas ativas da API
   useEffect(() => {
     const carregarEmpresas = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(`${API_BASE_URL}/empresas`);
+        // Buscar apenas empresas ativas (ATIVO = 'S')
+        const response = await fetch(`${API_BASE_URL}/empresas/ativas`);
         
         if (!response.ok) {
           throw new Error(`Erro ao carregar empresas: ${response.statusText}`);
@@ -72,7 +74,7 @@ export function useEmpresas(): UseEmpresasReturn {
           if (empresaSalva) {
             try {
               const empresa = JSON.parse(empresaSalva);
-              // Verificar se a empresa ainda existe
+              // Verificar se a empresa ainda existe na lista de ativas
               const empresaExiste = data.data.find((e: Empresa) => e.id === empresa.id);
               if (empresaExiste) {
                 setEmpresaSelecionada(empresaExiste);
