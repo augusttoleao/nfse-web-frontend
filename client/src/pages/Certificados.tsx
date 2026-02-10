@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useEmpresas } from '@/hooks/useEmpresas';
 import { useCertificados } from '@/hooks/useCertificados';
 import { Button } from '@/components/ui/button';
@@ -20,12 +20,18 @@ export default function Certificados() {
   const [mensagem, setMensagem] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
   const [validandoCert, setValidandoCert] = useState(false);
 
-  // Carregar certificados quando empresa mudar
+  // Ref para evitar chamadas duplicadas
+  const lastEmpresaId = useRef<number | null>(null);
+  const listarRef = useRef(listarCertificados);
+  listarRef.current = listarCertificados;
+
+  // Carregar certificados quando empresa mudar - SEM loop infinito
   useEffect(() => {
-    if (empresaSelecionada) {
-      listarCertificados(empresaSelecionada.id);
+    if (empresaSelecionada && empresaSelecionada.id !== lastEmpresaId.current) {
+      lastEmpresaId.current = empresaSelecionada.id;
+      listarRef.current(empresaSelecionada.id);
     }
-  }, [empresaSelecionada, listarCertificados]);
+  }, [empresaSelecionada?.id]);
 
   const handleValidarCertificado = async () => {
     if (!arquivo || !senha) {
@@ -42,7 +48,7 @@ export default function Certificados() {
       } else {
         setMensagem({ tipo: 'erro', texto: 'Certificado inválido ou senha incorreta' });
       }
-    } catch (err) {
+    } catch {
       setMensagem({ tipo: 'erro', texto: 'Erro ao validar certificado' });
     } finally {
       setValidandoCert(false);
@@ -70,7 +76,10 @@ export default function Certificados() {
       setMensagem({ tipo: 'sucesso', texto: 'Certificado enviado com sucesso!' });
       setArquivo(null);
       setSenha('');
-    } catch (err) {
+      // Reset file input
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+    } catch {
       setMensagem({ tipo: 'erro', texto: 'Erro ao enviar certificado' });
     } finally {
       setEnviando(false);
@@ -85,7 +94,7 @@ export default function Certificados() {
     try {
       await deletarCertificado(certificadoId);
       setMensagem({ tipo: 'sucesso', texto: 'Certificado deletado com sucesso!' });
-    } catch (err) {
+    } catch {
       setMensagem({ tipo: 'erro', texto: 'Erro ao deletar certificado' });
     }
   };
@@ -107,7 +116,7 @@ export default function Certificados() {
       <div>
         <h1 className="text-3xl font-bold text-foreground">Certificados Digitais</h1>
         <p className="text-muted-foreground mt-2">
-          Gerenciar certificados digitais para {empresaSelecionada.nomeFantasia}
+          Gerenciar certificados digitais para {empresaSelecionada.nomeFantasia || empresaSelecionada.razaoSocial}
         </p>
       </div>
 
@@ -142,48 +151,36 @@ export default function Certificados() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Seletor de Arquivo */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               Arquivo PFX
             </label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="file"
-                accept=".pfx"
-                onChange={(e) => setArquivo(e.target.files?.[0] || null)}
-                disabled={enviando || validandoCert}
-                className="flex-1"
-              />
-              {arquivo && (
-                <span className="text-sm text-muted-foreground">
-                  {arquivo.name}
-                </span>
-              )}
-            </div>
+            <Input
+              type="file"
+              accept=".pfx,.p12"
+              onChange={(e) => setArquivo(e.target.files?.[0] || null)}
+              disabled={enviando || validandoCert}
+              className="flex-1"
+            />
           </div>
 
-          {/* Campo de Senha */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               Senha do Certificado
             </label>
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                <Input
-                  type="password"
-                  placeholder="Informe a senha do certificado"
-                  value={senha}
-                  onChange={(e) => setSenha(e.target.value)}
-                  disabled={enviando || validandoCert}
-                  className="pl-10"
-                />
-              </div>
+            <div className="relative">
+              <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+              <Input
+                type="password"
+                placeholder="Informe a senha do certificado"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                disabled={enviando || validandoCert}
+                className="pl-10"
+              />
             </div>
           </div>
 
-          {/* Botões */}
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -230,10 +227,13 @@ export default function Certificados() {
                 >
                   <div className="flex-1">
                     <h3 className="font-semibold text-foreground">
-                      {cert.cnpj}
+                      {cert.razaoSocial || cert.cnpj}
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      Série: {cert.numeroSerie}
+                      CNPJ: {cert.cnpj}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Série: {cert.numeroSerie || '-'}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       Vencimento: {cert.dataValidade ? new Date(cert.dataValidade).toLocaleDateString('pt-BR') : '-'}

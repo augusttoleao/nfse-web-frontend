@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useEmpresas } from '@/hooks/useEmpresas';
 import { useCertificados } from '@/hooks/useCertificados';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,16 +41,18 @@ export default function Empresas() {
   const [validandoCert, setValidandoCert] = useState(false);
   const [mensagem, setMensagem] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
 
+  // Ref para evitar loop infinito
+  const lastEmpresaId = useRef<number | null>(null);
+  const listarRef = useRef(listarCertificados);
+  listarRef.current = listarCertificados;
+
   // Carregar certificados quando empresa mudar
-  const carregarCerts = useCallback(() => {
-    if (empresaSelecionada) {
-      listarCertificados(empresaSelecionada.id);
+  useEffect(() => {
+    if (empresaSelecionada && empresaSelecionada.id !== lastEmpresaId.current) {
+      lastEmpresaId.current = empresaSelecionada.id;
+      listarRef.current(empresaSelecionada.id);
     }
   }, [empresaSelecionada?.id]);
-
-  useEffect(() => {
-    carregarCerts();
-  }, [carregarCerts]);
 
   const handleValidarCertificado = async () => {
     if (!arquivo || !senha) {
