@@ -35,7 +35,8 @@ interface UseNotasParams {
 
 /**
  * Hook para consultar notas fiscais
- * Só faz a requisição quando há datas de filtro informadas
+ * Envia empresaId para o backend buscar CNPJ/IM e certificado do banco
+ * Só faz a requisição quando há datas de filtro e empresa selecionada
  */
 export function useNotas({
   tipo,
@@ -56,8 +57,8 @@ export function useNotas({
   }), [tipo, dataInicio, dataFim, pagina, itensPorPagina, empresaId]);
 
   useEffect(() => {
-    // Não buscar se não tem datas definidas (evita erro 400)
-    if (!stableParams.dataInicio || !stableParams.dataFim) {
+    // Não buscar se não tem datas definidas ou empresa selecionada
+    if (!stableParams.dataInicio || !stableParams.dataFim || !stableParams.empresaId) {
       setNotas([]);
       setTotal(0);
       setLoading(false);
@@ -71,6 +72,7 @@ export function useNotas({
         setError(null);
 
         const params = new URLSearchParams();
+        params.append('empresaId', stableParams.empresaId!.toString());
         params.append('dataInicio', stableParams.dataInicio!);
         params.append('dataFim', stableParams.dataFim!);
         params.append('pagina', stableParams.pagina.toString());
@@ -115,10 +117,9 @@ export function useNotas({
 
 /**
  * Buscar resumo de notas para o Dashboard
- * Retorna zeros se não houver dados (sem fazer requisição desnecessária)
+ * Retorna zeros até que a integração com SEFIN esteja ativa
  */
 export async function fetchNotasResume() {
-  // Dashboard mostra zeros até que a integração com SEFIN esteja ativa
   return {
     totalEmitidas: 0,
     totalRecebidas: 0,

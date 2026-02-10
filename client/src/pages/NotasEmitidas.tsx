@@ -8,24 +8,21 @@ import { useEmpresas } from '@/hooks/useEmpresas';
 import { Search, Filter, Download, Eye, AlertCircle, FileText, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
-
 /**
  * Baixar DANFSe (PDF) de uma nota fiscal
  */
-async function baixarDanfse(chaveAcesso: string) {
+async function baixarDanfse(chaveAcesso: string, empresaId?: number) {
   try {
-    const response = await fetch(`${API_BASE_URL}/notas/${chaveAcesso}/danfse`);
+    const params = empresaId ? `?empresaId=${empresaId}` : '';
+    const response = await fetch(`/api/notas/${chaveAcesso}/danfse${params}`);
     if (!response.ok) {
       const errorData = await response.json().catch(() => null);
       throw new Error(errorData?.message || `Erro ${response.status}`);
     }
 
-    // Verificar se é PDF ou JSON com URL
     const contentType = response.headers.get('content-type') || '';
     
     if (contentType.includes('application/pdf')) {
-      // Download direto do PDF
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -37,14 +34,28 @@ async function baixarDanfse(chaveAcesso: string) {
       document.body.removeChild(a);
       toast.success('DANFSe baixado com sucesso!');
     } else {
-      // Pode ser JSON com URL do PDF
       const data = await response.json();
-      if (data.success && data.data?.url) {
+      if (data.success && data.data?.pdf) {
+        // Base64 PDF
+        const byteCharacters = atob(data.data.pdf);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `DANFSe_${chaveAcesso}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast.success('DANFSe baixado com sucesso!');
+      } else if (data.success && data.data?.url) {
         window.open(data.data.url, '_blank');
         toast.success('DANFSe aberto em nova aba');
-      } else if (data.success && data.data) {
-        // Pode ser base64
-        toast.info('DANFSe disponível');
       } else {
         throw new Error(data.message || 'Formato de resposta inesperado');
       }
@@ -59,15 +70,15 @@ async function baixarDanfse(chaveAcesso: string) {
 /**
  * Visualizar detalhes de uma nota fiscal
  */
-async function visualizarNota(chaveAcesso: string) {
+async function visualizarNota(chaveAcesso: string, empresaId?: number) {
   try {
-    const response = await fetch(`${API_BASE_URL}/notas/${chaveAcesso}`);
+    const params = empresaId ? `?empresaId=${empresaId}` : '';
+    const response = await fetch(`/api/notas/${chaveAcesso}${params}`);
     if (!response.ok) {
       throw new Error(`Erro ${response.status}`);
     }
     const data = await response.json();
     if (data.success) {
-      // Abrir em nova janela com os detalhes formatados
       const detalhes = JSON.stringify(data.data, null, 2);
       const win = window.open('', '_blank');
       if (win) {
@@ -112,7 +123,7 @@ export default function NotasEmitidas() {
 
   const handleBaixarDanfse = async (chaveAcesso: string) => {
     setBaixandoDanfse(chaveAcesso);
-    await baixarDanfse(chaveAcesso);
+    await baixarDanfse(chaveAcesso, empresaSelecionada?.id);
     setBaixandoDanfse(null);
   };
 
@@ -210,7 +221,7 @@ export default function NotasEmitidas() {
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
                     <Loader2 className="w-5 h-5 mx-auto mb-2 animate-spin" />
-                    Carregando notas...
+                    Consultando notas na API SEFIN Nacional...
                   </td>
                 </tr>
               ) : !dataInicio || !dataFim ? (
@@ -247,7 +258,7 @@ export default function NotasEmitidas() {
                         <button
                           className="p-1.5 hover:bg-secondary rounded transition-colors"
                           title="Visualizar detalhes"
-                          onClick={() => nota.chaveAcesso && visualizarNota(nota.chaveAcesso)}
+                          onClick={() => nota.chaveAcesso && visualizarNota(nota.chaveAcesso, empresaSelecionada?.id)}
                           disabled={!nota.chaveAcesso}
                         >
                           <Eye className="w-4 h-4 text-primary" />
