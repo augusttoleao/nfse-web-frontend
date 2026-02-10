@@ -5,7 +5,81 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useNotas } from '@/hooks/useNotas';
 import { useEmpresas } from '@/hooks/useEmpresas';
-import { Search, Filter, Download, Eye, AlertCircle, FileText } from 'lucide-react';
+import { Search, Filter, Download, Eye, AlertCircle, FileText, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+
+/**
+ * Baixar DANFSe (PDF) de uma nota fiscal
+ */
+async function baixarDanfse(chaveAcesso: string) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/notas/${chaveAcesso}/danfse`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.message || `Erro ${response.status}`);
+    }
+
+    // Verificar se é PDF ou JSON com URL
+    const contentType = response.headers.get('content-type') || '';
+    
+    if (contentType.includes('application/pdf')) {
+      // Download direto do PDF
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `DANFSe_${chaveAcesso}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('DANFSe baixado com sucesso!');
+    } else {
+      // Pode ser JSON com URL do PDF
+      const data = await response.json();
+      if (data.success && data.data?.url) {
+        window.open(data.data.url, '_blank');
+        toast.success('DANFSe aberto em nova aba');
+      } else if (data.success && data.data) {
+        // Pode ser base64
+        toast.info('DANFSe disponível');
+      } else {
+        throw new Error(data.message || 'Formato de resposta inesperado');
+      }
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Erro ao baixar DANFSe';
+    toast.error(msg);
+    console.error('Erro ao baixar DANFSe:', err);
+  }
+}
+
+/**
+ * Visualizar detalhes de uma nota fiscal
+ */
+async function visualizarNota(chaveAcesso: string) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/notas/${chaveAcesso}`);
+    if (!response.ok) {
+      throw new Error(`Erro ${response.status}`);
+    }
+    const data = await response.json();
+    if (data.success) {
+      // Abrir em nova janela com os detalhes formatados
+      const detalhes = JSON.stringify(data.data, null, 2);
+      const win = window.open('', '_blank');
+      if (win) {
+        win.document.write(`<html><head><title>NFSe ${chaveAcesso}</title><style>body{font-family:monospace;padding:20px;background:#f5f5f5;}pre{background:white;padding:20px;border-radius:8px;border:1px solid #ddd;overflow:auto;}</style></head><body><h2>Detalhes da NFSe</h2><p>Chave: ${chaveAcesso}</p><pre>${detalhes}</pre></body></html>`);
+      }
+    } else {
+      toast.error(data.message || 'Erro ao consultar nota');
+    }
+  } catch (err) {
+    toast.error('Erro ao consultar detalhes da nota');
+  }
+}
 
 export default function NotasEmitidas() {
   const { empresaSelecionada } = useEmpresas();
@@ -13,6 +87,7 @@ export default function NotasEmitidas() {
   const [dataFim, setDataFim] = useState('');
   const [filtroBusca, setFiltroBusca] = useState('');
   const [pagina, setPagina] = useState(1);
+  const [baixandoDanfse, setBaixandoDanfse] = useState<string | null>(null);
 
   const { notas, total, loading, error } = useNotas({
     tipo: 'emitidas',
@@ -34,6 +109,12 @@ export default function NotasEmitidas() {
   });
 
   const totalPaginas = Math.max(1, Math.ceil(total / 10));
+
+  const handleBaixarDanfse = async (chaveAcesso: string) => {
+    setBaixandoDanfse(chaveAcesso);
+    await baixarDanfse(chaveAcesso);
+    setBaixandoDanfse(null);
+  };
 
   if (!empresaSelecionada) {
     return (
@@ -128,6 +209,7 @@ export default function NotasEmitidas() {
               {loading ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                    <Loader2 className="w-5 h-5 mx-auto mb-2 animate-spin" />
                     Carregando notas...
                   </td>
                 </tr>
@@ -162,11 +244,25 @@ export default function NotasEmitidas() {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <button className="p-1.5 hover:bg-secondary rounded transition-colors" title="Visualizar">
+                        <button
+                          className="p-1.5 hover:bg-secondary rounded transition-colors"
+                          title="Visualizar detalhes"
+                          onClick={() => nota.chaveAcesso && visualizarNota(nota.chaveAcesso)}
+                          disabled={!nota.chaveAcesso}
+                        >
                           <Eye className="w-4 h-4 text-primary" />
                         </button>
-                        <button className="p-1.5 hover:bg-secondary rounded transition-colors" title="Baixar">
-                          <Download className="w-4 h-4 text-primary" />
+                        <button
+                          className="p-1.5 hover:bg-secondary rounded transition-colors"
+                          title="Baixar DANFSe (PDF)"
+                          onClick={() => nota.chaveAcesso && handleBaixarDanfse(nota.chaveAcesso)}
+                          disabled={!nota.chaveAcesso || baixandoDanfse === nota.chaveAcesso}
+                        >
+                          {baixandoDanfse === nota.chaveAcesso ? (
+                            <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                          ) : (
+                            <Download className="w-4 h-4 text-primary" />
+                          )}
                         </button>
                       </div>
                     </td>

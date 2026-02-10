@@ -236,10 +236,10 @@ export default function Certificados() {
                       Série: {cert.numeroSerie}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Vencimento: {new Date(cert.dataVencimento).toLocaleDateString('pt-BR')}
+                      Vencimento: {cert.dataValidade ? new Date(cert.dataValidade).toLocaleDateString('pt-BR') : '-'}
                     </p>
                     <p className="text-xs text-muted-foreground mt-2">
-                      Cadastrado em: {new Date(cert.dataProcessamento).toLocaleDateString('pt-BR')}
+                      Cadastrado em: {cert.dataInclusao ? new Date(cert.dataInclusao).toLocaleDateString('pt-BR') : '-'}
                     </p>
                   </div>
                   <Button

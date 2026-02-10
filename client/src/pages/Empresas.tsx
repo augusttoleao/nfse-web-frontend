@@ -214,10 +214,10 @@ export default function Empresas() {
           ) : certificados.length > 0 ? (
             <div className="space-y-3 mb-6">
               {certificados.map((cert) => {
-                const vencido = new Date(cert.dataVencimento) < new Date();
+                const vencido = cert.dataValidade ? new Date(cert.dataValidade) < new Date() : false;
                 const venceEm30Dias =
                   !vencido &&
-                  new Date(cert.dataVencimento) <
+                  cert.dataValidade && new Date(cert.dataValidade) <
                     new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
                 return (
@@ -255,7 +255,7 @@ export default function Empresas() {
                           <div>
                             <span className="text-muted-foreground">Validade: </span>
                             <span className={vencido ? 'text-destructive font-medium' : ''}>
-                              {new Date(cert.dataVencimento).toLocaleDateString('pt-BR')}
+                              {cert.dataValidade ? new Date(cert.dataValidade).toLocaleDateString('pt-BR') : '-'}
                             </span>
                           </div>
                           <div className="col-span-2">
@@ -264,7 +264,7 @@ export default function Empresas() {
                           </div>
                           <div className="col-span-2">
                             <span className="text-muted-foreground">Cadastrado em: </span>
-                            <span>{new Date(cert.dataProcessamento).toLocaleDateString('pt-BR')}</span>
+                            <span>{cert.dataInclusao ? new Date(cert.dataInclusao).toLocaleDateString('pt-BR') : '-'}</span>
                           </div>
                         </div>
                       </div>

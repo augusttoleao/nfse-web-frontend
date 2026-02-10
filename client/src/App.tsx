@@ -11,6 +11,7 @@ import NotasRecebidas from "./pages/NotasRecebidas";
 import Empresas from "./pages/Empresas";
 import Certificados from "./pages/Certificados";
 import Configuracoes from "./pages/Configuracoes";
+import EmissaoDPS from "./pages/EmissaoDPS";
 
 function Router() {
   return (
@@ -19,6 +20,7 @@ function Router() {
         <Route path="/" component={Dashboard} />
         <Route path="/emitidas" component={NotasEmitidas} />
         <Route path="/recebidas" component={NotasRecebidas} />
+        <Route path="/emissao" component={EmissaoDPS} />
         <Route path="/empresas" component={Empresas} />
         <Route path="/certificados" component={Certificados} />
         <Route path="/config" component={Configuracoes} />

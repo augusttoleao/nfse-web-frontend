@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, X, FileText, BarChart3, Settings, Lock, Building2 } from 'lucide-react';
+import { Menu, X, FileText, BarChart3, Settings, Lock, Building2, Send, FileDown, FileUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EmpresaSelector } from '@/components/EmpresaSelector';
 
@@ -12,8 +12,9 @@ export default function Layout({ children }: LayoutProps) {
 
   const menuItems = [
     { icon: BarChart3, label: 'Dashboard', href: '/', id: 'dashboard' },
-    { icon: FileText, label: 'Notas Emitidas', href: '/emitidas', id: 'emitidas' },
-    { icon: FileText, label: 'Notas Recebidas', href: '/recebidas', id: 'recebidas' },
+    { icon: Send, label: 'Emissão NFSe', href: '/emissao', id: 'emissao' },
+    { icon: FileUp, label: 'Notas Emitidas', href: '/emitidas', id: 'emitidas' },
+    { icon: FileDown, label: 'Notas Recebidas', href: '/recebidas', id: 'recebidas' },
     { icon: Building2, label: 'Empresas', href: '/empresas', id: 'empresas' },
     { icon: Lock, label: 'Certificados', href: '/certificados', id: 'certificados' },
     { icon: Settings, label: 'Configurações', href: '/config', id: 'config' },
@@ -71,7 +72,7 @@ export default function Layout({ children }: LayoutProps) {
         {/* Footer */}
         {sidebarOpen && (
           <div className="p-3 border-t border-sidebar-border">
-            <p className="text-[10px] text-sidebar-foreground/50">© 2026 NFSe Nacional</p>
+            <p className="text-[10px] text-sidebar-foreground/50">v1.1.0 - NFSe Nacional</p>
           </div>
         )}
       </aside>

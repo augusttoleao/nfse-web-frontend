@@ -5,11 +5,11 @@ interface Certificado {
   empresaId: number;
   cnpj: string;
   razaoSocial: string;
+  nomeArquivo: string;
+  dataValidade: string;
+  dataInclusao: string;
+  dataAlteracao: string;
   numeroSerie: string;
-  dataVencimento: string;
-  assunto: string;
-  emissor: string;
-  dataProcessamento: string;
 }
 
 interface UseCertificadosReturn {
@@ -22,7 +22,7 @@ interface UseCertificadosReturn {
   deletarCertificado: (certificadoId: number) => Promise<void>;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = '/api';
 
 /**
  * Hook para gerenciar certificados digitais
@@ -32,9 +32,6 @@ export function useCertificados(): UseCertificadosReturn {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /**
-   * Fazer upload de certificado
-   */
   const uploadCertificado = async (
     file: File,
     empresaId: number,
@@ -58,30 +55,23 @@ export function useCertificados(): UseCertificadosReturn {
         body: formData,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro ao fazer upload do certificado');
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || data.details || 'Erro ao fazer upload do certificado');
       }
 
-      const data = await response.json();
-      
-      if (data.success) {
-        // Recarregar lista de certificados
-        await listarCertificados(empresaId);
-      }
+      // Recarregar lista
+      await listarCertificados(empresaId);
     } catch (err) {
       const mensagem = err instanceof Error ? err.message : 'Erro desconhecido';
       setError(mensagem);
-      console.error('Erro ao fazer upload:', err);
       throw err;
     } finally {
       setLoading(false);
     }
   };
 
-  /**
-   * Validar certificado sem salvar
-   */
   const validarCertificado = async (file: File, senha: string): Promise<boolean> => {
     try {
       setLoading(true);
@@ -96,54 +86,42 @@ export function useCertificados(): UseCertificadosReturn {
         body: formData,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro ao validar certificado');
-      }
-
       const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao validar certificado');
+      }
       return data.valido === true;
     } catch (err) {
       const mensagem = err instanceof Error ? err.message : 'Erro desconhecido';
       setError(mensagem);
-      console.error('Erro ao validar:', err);
       return false;
     } finally {
       setLoading(false);
     }
   };
 
-  /**
-   * Listar certificados de uma empresa
-   */
   const listarCertificados = async (empresaId: number) => {
     try {
       setLoading(true);
       setError(null);
 
       const response = await fetch(`${API_BASE_URL}/certificados/empresa/${empresaId}`);
-
-      if (!response.ok) {
-        throw new Error('Erro ao listar certificados');
-      }
-
       const data = await response.json();
 
       if (data.success && data.data) {
         setCertificados(data.data);
+      } else {
+        setCertificados([]);
       }
     } catch (err) {
-      const mensagem = err instanceof Error ? err.message : 'Erro desconhecido';
-      setError(mensagem);
+      // Não quebrar a tela se der erro - apenas mostrar lista vazia
+      setCertificados([]);
       console.error('Erro ao listar certificados:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  /**
-   * Deletar certificado
-   */
   const deletarCertificado = async (certificadoId: number) => {
     try {
       setLoading(true);
@@ -157,12 +135,10 @@ export function useCertificados(): UseCertificadosReturn {
         throw new Error('Erro ao deletar certificado');
       }
 
-      // Remover da lista local
-      setCertificados(certificados.filter(c => c.id !== certificadoId));
+      setCertificados(prev => prev.filter(c => c.id !== certificadoId));
     } catch (err) {
       const mensagem = err instanceof Error ? err.message : 'Erro desconhecido';
       setError(mensagem);
-      console.error('Erro ao deletar:', err);
       throw err;
     } finally {
       setLoading(false);
