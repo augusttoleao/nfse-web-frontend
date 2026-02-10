@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useEmpresas, Empresa } from '@/hooks/useEmpresas';
 import {
   Select,
@@ -14,8 +14,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
-
 /**
  * Componente de Seletor de Empresas - Header compacto
  * Exibe dropdown com nome fantasia e indicador de certificado
@@ -26,40 +24,49 @@ export function EmpresaSelector() {
   
   // Cache de status de certificado por empresa
   const [certStatus, setCertStatus] = useState<Record<number, { temCert: boolean; valido: boolean; vencimento?: string }>>({});
+  
+  // Ref para evitar chamadas duplicadas
+  const fetchedRef = useRef(false);
+  const empresasIdsRef = useRef('');
 
-  // Buscar status de certificado para todas as empresas
+  // Buscar status de certificado para todas as empresas (apenas uma vez)
   useEffect(() => {
-    if (empresas.length === 0) return;
+    const currentIds = empresas.map(e => e.id).sort().join(',');
+    
+    // Só buscar se as empresas mudaram e não foi buscado ainda
+    if (empresas.length === 0 || currentIds === empresasIdsRef.current) return;
+    
+    empresasIdsRef.current = currentIds;
 
     const fetchCertStatus = async () => {
       const statusMap: Record<number, { temCert: boolean; valido: boolean; vencimento?: string }> = {};
       
-      await Promise.all(
-        empresas.map(async (empresa) => {
-          try {
-            const response = await fetch(`${API_BASE_URL}/certificados/empresa/${empresa.id}`);
-            if (response.ok) {
-              const data = await response.json();
-              if (data.success && data.data && data.data.length > 0) {
-                const cert = data.data[0];
-                const vencido = cert.dataValidade ? new Date(cert.dataValidade) < new Date() : false;
-                statusMap[empresa.id] = {
-                  temCert: true,
-                  valido: !vencido,
-                  vencimento: cert.dataValidade,
-                };
-              } else {
-                statusMap[empresa.id] = { temCert: false, valido: false };
-              }
+      // Buscar em paralelo mas com controle
+      const promises = empresas.map(async (empresa) => {
+        try {
+          const response = await fetch(`/api/certificados/empresa/${empresa.id}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data && data.data.length > 0) {
+              const cert = data.data[0];
+              const vencido = cert.dataValidade ? new Date(cert.dataValidade) < new Date() : false;
+              statusMap[empresa.id] = {
+                temCert: true,
+                valido: !vencido,
+                vencimento: cert.dataValidade,
+              };
             } else {
               statusMap[empresa.id] = { temCert: false, valido: false };
             }
-          } catch {
+          } else {
             statusMap[empresa.id] = { temCert: false, valido: false };
           }
-        })
-      );
-      
+        } catch {
+          statusMap[empresa.id] = { temCert: false, valido: false };
+        }
+      });
+
+      await Promise.all(promises);
       setCertStatus(statusMap);
     };
 
